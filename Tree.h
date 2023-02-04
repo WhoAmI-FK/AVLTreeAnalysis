@@ -1,49 +1,14 @@
 #pragma once
 #include <iostream>
 #include <string>
+#include <queue>
 
 namespace __trees {
 
-	namespace __customClass {
-
-		class CustomString : public std::string
-		{
-
-			CustomString(const std::string& str)
-				: std::string(str)
-			{
-
-			}
-
-			bool operator<(const CustomString& str)
-			{
-
-			}
-
-			bool operator>(const CustomString& str)
-			{
-
-			}
-
-			bool operator>=(const CustomString& str)
-			{
-
-			}
-
-			bool operator<=(const CustomString& str)
-			{
-
-			}
-
-			bool operator==(const CustomString& str)
-			{
-				
-			}
-
-
-
-		};
-	}
+	enum __height {
+		HEIGHT_SAME = 0,
+		HEIGHT_CHANGE
+	};
 
 	namespace BST {
 		template<typename T>
@@ -53,8 +18,7 @@ namespace __trees {
 			T value;
 			Node()
 				: left(nullptr),
-				right(nullptr),
-				value(0)
+				right(nullptr)
 			{
 
 			}
@@ -67,17 +31,63 @@ namespace __trees {
 
 			~Tree()
 			{
-				delete_tree(root);
+				clear(root);
 			}
 
-			void delete_tree(Node<T>* root)
+			void clear()
 			{
-				if (root != nullptr)
+				clear(root);
+			}
+
+			// for bst tree doesn't work!
+			// due to the abundance of recursive func calls
+			/*void clear(Node<T>*& ptr)
+			{
+				if (ptr != nullptr)
 				{
-					delete_tree(root->left);
-					delete_tree(root->right);
-					delete root;
+					if(ptr->left != nullptr)
+					clear(ptr->left);
+
+					if(ptr->right != nullptr)
+					clear(ptr->right);
+
+					if (ptr == root)
+					{
+						auto temp = root;
+						root = nullptr;
+						delete temp;
+					}
+					else delete ptr;
 				}
+		//		root = nullptr;
+			}
+			*/
+
+			void clear(Node<T>*& ptr)
+			{
+				if (ptr == nullptr)
+				{
+					return;
+				}
+
+				std::queue<Node<T>*> q;
+				q.push(ptr);
+				while (!q.empty())
+				{
+					Node<T>* tmp = q.front();
+					q.pop();
+					if (tmp->left)
+					{
+						q.push(tmp->left);
+					}
+
+					if (tmp->right)
+					{
+						q.push(tmp->right);
+					}
+					delete tmp;
+				}
+				root = nullptr;
 			}
 
 			void insert(T v)
@@ -113,25 +123,24 @@ namespace __trees {
 				}
 			}
 
+			// was remade from recursive to iterative
 			bool isStored(Node<T>* ptr, const T& val)
 			{
-				if (ptr == nullptr)
+				while (ptr != nullptr)
 				{
-					return false;
+					if (ptr->value == val)
+					{
+						return true;
+					}
+					else if (val > ptr->value)
+					{
+						ptr = ptr->right;
+					}
+					else {
+						ptr = ptr->left;
+					}
 				}
-
-				if (ptr->value == val)
-				{
-					return true;
-				}
-
-				if (val > ptr->value)
-				{
-					return isStored(ptr->right, val);
-				}
-				else {
-					return isStored(ptr->left, val);
-				}
+				return false;
 			}
 
 			bool isStored(const T& val)
@@ -149,27 +158,6 @@ namespace __trees {
 		// lr_rotation done 
 		// rl_rotation done
 		// balance_factor + insert : 
-
-		namespace __pseudo {
-		/*
-			void rotateR(AVLNode* ptr)
-			{
-				AVLNode* tmp = ptr;
-				ptr = ptr->left;
-				tmp->left = ptr->right;
-				ptr->right = tmp;
-			}
-
-			void rotateL(AVLNode* ptr)
-			{
-				AVLNode* tmp = ptr;
-				ptr = ptr->right;
-				tmp->right = ptr->left;
-				ptr->left = tmp;
-			}
-			*/
-		}
-
 
 		template<typename T>
 		struct AVLNode {
@@ -191,47 +179,81 @@ namespace __trees {
 			AVLTree() {
 				root = nullptr;
 			}
+
+			~AVLTree()
+			{
+				clear(root);
+			}
+
+			void clear()
+			{
+				clear(root);
+			}
+
+			void clear(AVLNode<T>*& ptr)
+			{
+				if (ptr != nullptr)
+				{
+					clear(ptr->left);
+					clear(ptr->right);
+					if (ptr == root)
+					{
+						auto temp = root;
+						root = nullptr;
+						delete temp;
+					}else delete ptr;
+				}
+//				root = nullptr;
+			}
 			
-			void insert(AVLNode<T>*& ptr, const T& v)
+			void insert(AVLNode<T>*& ptr, const T& v, int& change)
 			{
 				if (ptr == nullptr) {
 					ptr = new AVLNode<T>(v);
+					change = __height::HEIGHT_CHANGE;
 					return;
 				}
 				if (ptr->val >= v) {
-					insert(ptr->left, v);
+					insert(ptr->left, v, change);
+					change = change < 0 ? change : -change;
 				
 				}else{
-					insert(ptr->right, v);
+					insert(ptr->right, v, change);
+					change = change > 0 ? change : -change;
 				}
 				// recalc BalanceFactor
-				ptr->balanceFactor = BF(ptr);
+				ptr->balanceFactor += change;
 
 				if (ptr->balanceFactor == -2) {
 					if (ptr->left->balanceFactor == -1)
 					{
-						ptr = lLeftRotate(ptr);
+						ptr = lLeftRotate(ptr,change);
 					}
 					else if (ptr->left->balanceFactor == 1)
 					{
-						ptr = lRightRotate(ptr);
+						ptr = lRightRotate(ptr,change);
 					}
 				}else if (ptr->balanceFactor == 2) {
 					if (ptr->right->balanceFactor == 1)
 					{
-						ptr = rRightRotate(ptr);
+						ptr = rRightRotate(ptr,change);
 					}
 					else if (ptr->right->balanceFactor == -1)
 					{
-						ptr = rLeftRotate(ptr);
+						ptr = rLeftRotate(ptr,change);
 					}
 				}
-
+				if (ptr->balanceFactor == 0)
+				{
+					change = __height::HEIGHT_SAME;
+					return;
+				}
 			}
 
 			void insert(T v)
 			{
-				insert(root, v);
+				int change = HEIGHT_CHANGE;
+				insert(root, v, change);
 			}
 
 			int BF(AVLNode<T>* ptr)
@@ -244,63 +266,75 @@ namespace __trees {
 
 			}
 
-			AVLNode<T>* rRightRotate(AVLNode<T>* ptr)
+			AVLNode<T>* rRightRotate(AVLNode<T>* ptr, int& change)
 			{ // Left Rotation
 				AVLNode<T>* tmp = ptr->right;
+				if (ptr->right->balanceFactor == 0)
+				{
+					change = HEIGHT_SAME;
+				}
+				else {
+					change = HEIGHT_CHANGE;
+				}
 				ptr->right = tmp->left;
 				tmp->left = ptr;
-				ptr->balanceFactor = BF(ptr);
-				tmp->balanceFactor = BF(tmp);
+				ptr->balanceFactor -= (1 + std::max(tmp->balanceFactor, 0));
+				tmp->balanceFactor -= (1 - std::min(ptr->balanceFactor, 0));
 				return tmp;
 			}
 
-			AVLNode<T>* lLeftRotate(AVLNode<T>* ptr)
+			AVLNode<T>* lLeftRotate(AVLNode<T>* ptr, int& change)
 			{ // Right Rotation
 				AVLNode<T>* tmp = ptr->left;
+				if (ptr->left->balanceFactor == 0)
+				{
+					change = HEIGHT_SAME;
+				}
+				else {
+					change = HEIGHT_CHANGE;
+				}
 				ptr->left = tmp->right;
 				tmp->right = ptr;
-				ptr->balanceFactor = BF(ptr);
-				tmp->balanceFactor = BF(tmp);
+				ptr->balanceFactor += (1 - std::min(tmp->balanceFactor, 0));
+				tmp->balanceFactor += (1 + std::max(ptr->balanceFactor, 0));
 				return tmp;
 			}
 
-			AVLNode<T>* lRightRotate(AVLNode<T>* ptr)
+			AVLNode<T>* lRightRotate(AVLNode<T>* ptr, int& change)
 			{ // LEFT -> Right rotates
 				AVLNode<T>* tmp = ptr->left;
-				ptr->left = rRightRotate(tmp);
-				ptr->balanceFactor = BF(ptr);
-				tmp->balanceFactor = BF(tmp);
-				return lLeftRotate(ptr);
+				ptr->left = rRightRotate(tmp, change);
+				AVLNode<T>* ret = lLeftRotate(ptr, change);
+				change = HEIGHT_CHANGE;
+				return ret;
 			}
 
-			AVLNode<T>* rLeftRotate(AVLNode<T>* ptr)
+			AVLNode<T>* rLeftRotate(AVLNode<T>* ptr, int& change)
 			{ // right -> left rotates
 				AVLNode<T>* tmp = ptr->right;
-				ptr->right = lLeftRotate(tmp);
-				ptr->balanceFactor = BF(ptr);
-				tmp->balanceFactor = BF(tmp);
-				return rRightRotate(ptr);
+				ptr->right = lLeftRotate(tmp, change);
+				AVLNode<T>* ret = rRightRotate(ptr, change);
+				change = HEIGHT_CHANGE;
+				return ret;
 			}
 
 			bool isStored(AVLNode<T>* ptr, const T& val)
 			{
-				if (ptr == nullptr)
+				while (ptr != nullptr)
 				{
-					return false;
+					if (ptr->val == val)
+					{
+						return true;
+					}
+					else if (val > ptr->val)
+					{
+						ptr = ptr->right;
+					}
+					else {
+						ptr = ptr->left;
+					}
 				}
-
-				if (ptr->val == val)
-				{
-					return true;
-				}
-
-				if (val > ptr->val)
-				{
-					return isStored(ptr->right, val);
-				}
-				else {
-					return isStored(ptr->left, val);
-				}
+				return false;
 			}
 
 			int getHeight(AVLNode<T>* node) {

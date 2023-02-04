@@ -4,115 +4,182 @@
 #include <random>
 #include <cassert>
 #include <algorithm>
-#include <limits>
+#include <functional>
+#include "DataMgr.h"
+#include "Test.h"
+#include "DataContainer.h"
+
+#define FILE_NAME "wordlist.txt"
 
 constexpr int step = 100;
-constexpr int maxlen = 10000;
+constexpr int numOfLines =10000;
 constexpr int times = 100;
+constexpr double coeffNonSortedEl = 0.1;
 
-int potentialMain()
+
+std::vector<std::string> nonListBelongedWords
+=
+{
+	"guts",
+	"goku",
+	"sharingan",
+	"huskar",
+	"cplusplus",
+	"barbarosa",
+	"samurai",
+	"sensei",
+	"valhala"
+};
+
+/*
+Do this on three input data sets:
+1. random data,
+2. ordered data,
+3. nearly ordered data
+*/
+
+void getRandomData(DataMgr& d, const std::string& fileName, int numLines)
 {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	// add data collection
-	for (int len = step; len <= maxlen; len += step) {
+	d.loadFromFile(fileName, numLines);
+	std::shuffle(d._container.begin(), d._container.end(), gen);
+}
 
-		//DataContainer sorts;
-	//	sorts.init();
-		//sorts.len = len;
-		std::vector<int> original(len);
-		for (int i = 0; i < len; i++)
-		{
-			original[i] = i;
-		}
 
-		std::vector<int> arr;
-		std::vector<int> sorted;
-		for (int t = 0; t < times; t++)
-		{
+void getOrderedData(DataMgr& d, const std::string& fileName, int numLines)
+{
+	d.loadFromFile(fileName, numLines);
+	std::sort(d._container.begin(), d._container.end());
+}
 
-			std::shuffle(original.begin(), original.end(), gen);
+void getNearlyOrderedData(DataMgr& d, const std::string& fileName, int numLines)
+{
 
-		//	sorts.INS += __time::TimerAPI::get().estimateTime(original, arr, __sorting::SortingTypes::INSERTION_SORT);
+	// 1. load data
+	// 2. sort array
+	// 3. swap random elements in the array acc to coef
+	d.loadFromFile(fileName, numLines);
+	std::sort(d._container.begin(), d._container.end());
+	int numOfSwaps = d._container.size() * coeffNonSortedEl;
+	//	std::cout << "\n----------------------\n" << numOfSwaps << "\n----------------------\n";
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	int a, b;
+	std::uniform_int_distribution<int> dist(0, d._container.size() - 1);
+	for (int i = 0; i < numOfSwaps; i++)
+	{
+		a = dist(gen);
+		b = dist(gen);
+		std::swap(d._container[a], d._container[b]);
+	}	
 
-		//	sorts.MER += __time::TimerAPI::get().estimateTime(original, arr, __sorting::SortingTypes::MERGE_SORT);
+}
 
-		//	sorts.QUI += __time::TimerAPI::get().estimateTime(original, arr, __sorting::SortingTypes::QUICK_SORT);
+std::string getRandWordFromDataSet(DataMgr& d)
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<int> dist(0, d._container.size() - 1);
+	return d._container[(dist(gen))];
+}
 
-		//	sorts.HEP += __time::TimerAPI::get().estimateTime(original, arr, __sorting::SortingTypes::HEAP_SORT);
-
-			//			sorts.INS_B += __time::TimerAPI::get().estimateTime(arr, sorted, __sorting::SortingTypes::INSERTION_SORT);
-
-			//			sorts.MER_B += __time::TimerAPI::get().estimateTime(arr, sorted, __sorting::SortingTypes::MERGE_SORT);
-
-			//			sorts.QUI_B += __time::TimerAPI::get().estimateTime(arr, sorted, __sorting::SortingTypes::QUICK_SORT);
-
-			//			sorts.HEP_B += __time::TimerAPI::get().estimateTime(arr, sorted, __sorting::SortingTypes::HEAP_SORT);
-		}
-
-		std::cout
-			<< len << " "
-		//	<< sorts.INS.count() / times << " "
-		//	<< sorts.MER.count() / times << " "
-		//	<< sorts.QUI.count() / times << " "
-		//	<< sorts.HEP.count() / times << " "
-			//			<< sorts.INS_B.count() / times << " "
-			//			<< sorts.MER_B.count() / times << " "
-			//			<< sorts.QUI_B.count() / times << " "
-			//			<< sorts.HEP_B.count() / times << " "
-			<< std::endl;
-
-		// collectedData.push_back(sorts);
-	}
-
+std::string getRandWordNoFromDataSet()
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<int> dist(0, nonListBelongedWords.size()-1);
+	return nonListBelongedWords[(dist(gen))];
 }
 
 int main()
 {
-	// test 1
+	// firstly for insertion
+	// add data collection
+	std::vector<std::function<void(DataMgr&, const std::string&, int)>> getData
+		=
 	{
-		__trees::AVL::AVLTree<int> A;
-		A.insert(4);
-		A.insert(2);
-		A.insert(5);
-		A.insert(3);
-		A.insert(7);
-		A.insert(1);
-		A.insert(6);
+		getRandomData,
+		getOrderedData,
+		getNearlyOrderedData
+	};
+	int dataTypeIndex = 0;
+	for (auto& get : getData) {
+		__trees::AVL::AVLTree<std::string> AVLT;
+		__trees::BST::Tree<std::string> BSTT;
+		std::vector<DataContainer> collectedData;
+		for (int len = step; len <= numOfLines; len += step) {
+			DataMgr m;
+			DataContainer dataSet;
+			dataSet.init();
+			dataSet.len = len;
+			for (int t = 0; t < times; t++)
+			{
+				if (dataTypeIndex != 2) continue;
+				get(m, FILE_NAME, len);
+				for (int t = 0; t < m._container.size() - 1; t++)
+				{
+					AVLT.insert(m._container[t]);
+					BSTT.insert(m._container[t]);
+				}
+				auto begin = std::chrono::steady_clock::now();
+				AVLT.insert(m._container[m._container.size() - 1]);
+				auto end = std::chrono::steady_clock::now();
+				dataSet.INS_AVL += (end - begin);
+				 
+				begin = std::chrono::steady_clock::now();
+				BSTT.insert(m._container[m._container.size() - 1]);
+				end = std::chrono::steady_clock::now();
+				dataSet.INS_BST += (end - begin);
 
-		A.print();
+				std::string wordToSearch = getRandWordFromDataSet(m);
 
-		std::cout << "\n\n" << (A.isStored(5) ? "YES" : "NO") << std::endl;
-		std::cout << std::endl << "Tree H: " << A.getHeight(A.root);
+				begin = std::chrono::steady_clock::now();
+				bool b = AVLT.isStored(wordToSearch);
+				end = std::chrono::steady_clock::now();
+				assert(b);
+				dataSet.SEARCH_AVL += (end - begin);
+
+				begin = std::chrono::steady_clock::now();
+			    BSTT.isStored(wordToSearch);
+				end = std::chrono::steady_clock::now();
+				assert(b);
+				dataSet.SEARCH_BST += (end - begin);
+
+				wordToSearch = getRandWordNoFromDataSet();
+
+				begin = std::chrono::steady_clock::now();
+				b = AVLT.isStored(wordToSearch);
+				end = std::chrono::steady_clock::now();
+				assert(!b);
+				dataSet.SEARCH_NOIN_AVL += (end - begin);
+
+				wordToSearch = getRandWordNoFromDataSet();
+				begin = std::chrono::steady_clock::now();
+				b = BSTT.isStored(wordToSearch);
+				end = std::chrono::steady_clock::now();
+				assert(!b);
+				dataSet.SEARCH_NOIN_BST += (end - begin);
+
+
+				AVLT.clear();
+				BSTT.clear();
+			}
+
+			std::cout
+				<< len << " "
+				<< dataSet.INS_AVL.count() / times << " "
+				<< dataSet.INS_BST.count() / times << " "
+				<< dataSet.SEARCH_AVL.count() / times << " "
+				<< dataSet.SEARCH_BST.count() / times << " "
+				<< dataSet.SEARCH_NOIN_AVL.count() / times << " "
+				<< dataSet.SEARCH_NOIN_BST.count() / times << " "
+				<< std::endl;
+			collectedData.push_back(dataSet);
+		}
+		DataContainer::outputDataToFile(collectedData, times, static_cast<FileType>(dataTypeIndex));
+		dataTypeIndex++;
+		collectedData.clear();
 	}
-	std::cout << std::endl << "------------------------------\n\n";
-	// Test 2
-	{
-		__trees::AVL::AVLTree<int> A;
-		A.insert(10);
-		A.insert(5);
-		A.insert(7);
-		A.insert(9);
-		A.insert(12);
-		A.insert(8);
-		A.print();
-
-		std::cout << "\n\n" << (A.isStored(10) ? "YES" : "NO") << std::endl;
-		std::cout << std::endl << "Tree H: " << A.getHeight(A.root);
-	}
-
-	std::cout << std::endl << "------------------------------\n\n";
-	{
-		
-		__trees::AVL::AVLTree<std::string> A;
-		A.insert("abcd");
-		A.insert("bbbb");
-		A.insert("dasd");
-		A.print();
-	//	std::cout << std::endl << "Tree H: " << A.getHeight(A.root); 
-	}
-
-
 	return 0;
 }
-
